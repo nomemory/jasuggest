@@ -9,4 +9,6 @@ JaSuggest js =
                        "uzo");
 
 List<String> result = js.findSuggestions("us");
+
+// OUTPUT: [usa, use, useful, useless, usurper]
 ```        
