@@ -1,6 +1,6 @@
 # jasuggest
 
-A simple autosuggest library based on a Java Trie implementation. 
+A simple autosuggest library based on a [Trie](https://en.wikipedia.org/wiki/Trie) implementation. 
 
 ```java
 JaSuggest js =
