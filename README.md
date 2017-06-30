@@ -2,8 +2,7 @@
 
 A simple autosuggest library based on a Java Trie implementation. 
 
-```
-java
+```java
 JaSuggest js =
         JaSuggest.from("use", "useless", "useful", "usa",
                        "usurper", "water", "gin", "soda",
