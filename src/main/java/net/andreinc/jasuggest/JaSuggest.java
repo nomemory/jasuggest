@@ -17,10 +17,13 @@
 package net.andreinc.jasuggest;
 
 import lombok.*;
+import lombok.experimental.FieldDefaults;
+import net.jodah.expiringmap.ExpiringMap;
 
 import java.util.*;
 
 import static java.util.Collections.sort;
+import static lombok.AccessLevel.PRIVATE;
 
 /**
  * Example:
@@ -28,7 +31,7 @@ import static java.util.Collections.sort;
  * <pre>
  *     {@code
  *      JaSuggest js = JaSuggest.from("ABC", "AB", "ACD", "ABCDE", "XX");
- *      List<String> results = js.findSuggestions("AB");
+ *      List<String> results = js.findSuggestionsInternal("AB");
  *      System.out.println(results);
  *
  *      // OUTPUT: [ABC, ABCDE]
@@ -38,67 +41,77 @@ import static java.util.Collections.sort;
  */
 public class JaSuggest {
 
-    private JaMap nodes = new JaMap();
+    private boolean ignoreCase = false;
+    private boolean prebuiltWords = false;
 
-    private JaSuggest() {}
+    private Map<String, List<String>> cache;
+    private JaMap nodes;
 
-    /**
-     * Creates a JaSuggest object from a given array of terms.
-     * If one of the terms in the array is NULL, a NullPointerException will be thrown.
-     * Validate input before calling this method.
-     *
-     * @param terms An array of String[] that contains the list of terms we are going to (later) auto-suggest.
-     *              Eg.: An array of countries.
-     *
-     * @return An instance of JaSuggest
-     */
-    public static final JaSuggest from(@NonNull String... terms) {
-        final JaSuggest result = new JaSuggest();
-
-        for(String term : terms) {
-            result.addTerm(term);
+    private JaSuggest(JaSuggestBuilder jaSuggestBuilder) {
+        if (jaSuggestBuilder.cacheConfig!=null) {
+            this.cache = ExpiringMap.builder()
+                                    .maxSize(jaSuggestBuilder.cacheConfig.getMaxSize())
+                                    .expirationPolicy(jaSuggestBuilder.cacheConfig.getExpirationPolicy())
+                                    .expiration(jaSuggestBuilder.cacheConfig.getExpiration(),
+                                                jaSuggestBuilder.cacheConfig.getExpirationUnit())
+                                    .build();
         }
 
-        return result;
+        this.ignoreCase = jaSuggestBuilder.ignoreCase;
+        this.prebuiltWords = jaSuggestBuilder.prebuiltWords;
+
+        this.nodes = new JaMap();
     }
 
-    /**
-     * Creates a JaSuggest object from a given Iterable (eg.: a List of Strings).
-     * If one of the terms in the Iterable object is NULL, a NullPointerException will be thrown.
-     * Validate input before calling this method.
-     *
-     * @param terms An Iterable of String that contains the terms we are going to (later) auto-suggest.
-     *              Eg.: An List of countries.
-     *
-     * @return An instance of JaSuggest
-     */
-    public static final JaSuggest from(@NonNull Iterable<String> terms) {
-        final JaSuggest result = new JaSuggest();
+    public static JaSuggestBuilder builder() { return new JaSuggestBuilder(); }
 
-        for(String term : terms) {
-            result.addTerm(term);
-        }
-
-        return result;
-    }
+    public boolean hasCache() { return cache != null; }
 
     /**
-     * This method allows to add a termn in the Trie after the JaSuggest object was created.
+     * Returns the current size of the map from memory.
+     * If the Map doesn't exist
      *
-     * @param term The term to be added in the Trie.
+     * @return
      */
-    public void addTerm(String term) {
-        JaMap map = this.nodes;
-        boolean isWord;
-        char[] chars = term.toCharArray();
+    public int cacheSize() { return (hasCache()) ? cache.size() : -1; }
 
-        for (int i = 0; i < chars.length; i++) {
-            map.putIfAbsent(chars[i], new JaMap());
-            map = map.get(chars[i]);
-            isWord = (chars.length - 1) == i;
-            if (!map.isWord() && isWord) {
-                map.setWord(isWord);
+    /**
+     * Creates a snapshot of the cache from the memory and returns it.
+     *
+     * @return A cloned representation of the cache from the memory. If the cache is not enabled it will always return an empty Map.
+     */
+    public Map<String, List<String>> cacheSnapshot() {
+        final Map<String, List<String>> result = new HashMap<>();
+
+        if (hasCache()) {
+            /** This works because string are immutable */
+            for(Map.Entry<String, List<String>> entry : cache.entrySet()) {
+                result.put(new String(entry.getKey()), new ArrayList<>(entry.getValue()));
             }
+        }
+
+        return result;
+    }
+
+    private JaSuggest from(@NonNull String... terms) {
+        addTerms(terms);
+        return this;
+    }
+
+    private JaSuggest from(@NonNull Iterable<String> terms) {
+        addTerms(terms);
+        return this;
+    }
+
+    private void addTerms(@NonNull String... terms) {
+        for(String term : terms) {
+            this.nodes.addTerm(term, prebuiltWords);
+        }
+    }
+
+    private void addTerms(Iterable<String> terms) {
+        for(String term : terms) {
+            this.nodes.addTerm(this.ignoreCase ? term.toLowerCase() : term, prebuiltWords);
         }
     }
 
@@ -111,7 +124,7 @@ public class JaSuggest {
      * @return A sorted list of all possible suggestions.
      */
     public List<String> findSuggestions(@NonNull String prefix) {
-        return this.findSuggestions(prefix, Integer.MAX_VALUE, true);
+        return this.findSuggestionsInternal(prefix, Integer.MAX_VALUE, true);
     }
 
     /**
@@ -125,7 +138,7 @@ public class JaSuggest {
      * @return A sorted List of suggestions.
      */
     public List<String> findSuggestions(@NonNull String prefix, int maxResults) {
-        return this.findSuggestions(prefix, maxResults, true);
+        return this.findSuggestionsInternal(prefix, maxResults, true);
     }
 
     /**
@@ -138,9 +151,8 @@ public class JaSuggest {
      * @return A List of suggestions.
      */
     public List<String> findSuggestions(@NonNull String prefix, boolean sorted) {
-        return this.findSuggestions(prefix, Integer.MAX_VALUE, sorted);
+        return this.findSuggestionsInternal(prefix, Integer.MAX_VALUE, sorted);
     }
-
 
     /**
      * Searches the current Trie for suggestions based on a given prefix.
@@ -151,65 +163,200 @@ public class JaSuggest {
      *
      * @return A List of suggestions.
      */
-    public List<String> findSuggestions(@NonNull String prefix, int maxResults, boolean sorted) {
-       final List<String> list = new ArrayList<>();
+    public List<String> findSuggestionsInternal(@NonNull String prefix, int maxResults, boolean sorted) {
+        List<String> list = new ArrayList<>();
+        List<String> tmp;
 
-        JaMap local = getLocationByPrefix(prefix);
-
-        if (null == local) {
-            return list;
+        if (ignoreCase) {
+            prefix = prefix.toLowerCase();
         }
 
+        if (hasCache() && (tmp=cache.get(prefix))!=null) {
+            list = new ArrayList<>(tmp);
+        } else {
+            JaMap local = getLocationByPrefix(prefix);
+
+            if (null == local) {
+                // Return empty list if prefix is not present
+                return list;
+            }
+
+            if (prebuiltWords) {
+                findSuggestionsWithPrebuiltWords(prefix, maxResults, list);
+            }
+            else {
+                findSuggestionsInternalWithJaSolution(prefix, maxResults, list);
+            }
+
+            if (sorted) {
+                sort(list);
+            }
+
+            if (list.size() > maxResults) {
+                List<String> newList = new ArrayList<>(maxResults);
+                for(int i = 0; i < maxResults; ++i) {
+                    newList.add(list.get(i));
+                }
+                list = newList;
+            }
+        }
+
+        if (hasCache()) {
+            cache.put(prefix, list);
+        }
+
+        return list;
+    }
+
+    private List<String> findSuggestionsInternalWithJaSolution(@NonNull String prefix, int maxResults, List<String> list) {
+        JaMap local = getLocationByPrefix(prefix);
         Iterator<Character> it;
         Character c;
+
         Stack<JaSolution> stack = new Stack<>();
         JaSolution current = new JaSolution(local, prefix);
         stack.push(current);
 
-
-        while(!stack.isEmpty() && list.size() <= maxResults) {
+        while (!stack.isEmpty()) {
             current = stack.pop();
 
-            if (current.getNode().isWord() && !current.getSolution().equals(prefix)) {
-                list.add(current.getSolution());
+            if (current.getNode().isLeaf() && !current.getTerm().equals(prefix)) {
+                list.add(current.getTerm());
             }
 
             it = current.getNode().keySet().iterator();
 
-            while(it.hasNext()) {
+            while (it.hasNext()) {
                 c = it.next();
-                stack.push(new JaSolution(current.getNode().get(c), current.getSolution() + c));
+                stack.push(new JaSolution(current.getNode().get(c), current.getTerm() + c));
             }
         }
 
-        if (sorted) {
-            sort(list);
+        return list;
+    }
+
+    private List<String> findSuggestionsWithPrebuiltWords(@NonNull String prefix, int maxResults, List<String> list) {
+        Iterator<JaMap> it;
+
+        Stack<JaMap> stack = new Stack<>();
+        JaMap current = getLocationByPrefix(prefix);
+        stack.push(current);
+
+        while(!stack.isEmpty()) {
+            current = stack.pop();
+
+            if (current.isLeaf() && !current.getTerm().equals(prefix)) {
+                list.add(current.getTerm());
+            }
+
+            it = current.values().iterator();
+
+            while(it.hasNext()) {
+                stack.push(it.next());
+            }
         }
 
         return list;
     }
 
     private JaMap getLocationByPrefix(@NonNull String prefix) {
-        char[] letters = prefix.toCharArray();
         JaMap local = this.nodes;
-        for(char letter : letters) {
-            local = local.get(letter);
+        for(int i = 0; i < prefix.length(); ++i) {
+            local = local.get(prefix.charAt(i));
             if (null == local) {
                 return null;
             }
         }
         return local;
     }
+
+    @NoArgsConstructor
+    @FieldDefaults(level = PRIVATE)
+    public static class JaSuggestBuilder {
+
+        JaCacheConfig cacheConfig;
+        boolean ignoreCase = false;
+        boolean prebuiltWords = false;
+
+        public JaSuggestBuilder withCache(JaCacheConfig config) {
+            this.cacheConfig = config;
+            return this;
+        }
+
+        public JaSuggestBuilder withCache() {
+            this.cacheConfig = JaCacheConfig.defaultConfig();
+            return this;
+        }
+
+        public JaSuggestBuilder ignoreCase() {
+            this.ignoreCase = true;
+            return this;
+        }
+
+        public JaSuggestBuilder prebuiltWords() {
+            this.prebuiltWords = true;
+            return this;
+        }
+
+        /**
+         * Creates a JaSuggest object from a given array of terms.
+         * If one of the terms in the array is NULL, a NullPointerException will be thrown.
+         * Validate input before calling this method.
+         *
+         * @param terms An array of String[] that contains the list of terms we are going to (later) auto-suggest.
+         *              Eg.: An array of countries.
+         *
+         * @return An instance of JaSuggest
+         */
+        public JaSuggest buildFrom(String... terms) {
+            return new JaSuggest(this).from(terms);
+        }
+
+        /**
+         * Creates a JaSuggest object from a given Iterable (eg.: a List of Strings).
+         * If one of the terms in the Iterable object is NULL, a NullPointerException will be thrown.
+         * Validate input before calling this method.
+         *
+         * @param terms An Iterable of String that contains the terms we are going to (later) auto-suggest.
+         *              Eg.: An List of countries.
+         *
+         * @return An instance of JaSuggest
+         */
+        public JaSuggest buildFrom(Iterable<String> terms) {
+            return new JaSuggest(this).from(terms);
+        }
+    }
 }
 
 @ToString
-class JaMap extends java.util.HashMap<Character, JaMap> {
-    @Getter @Setter private boolean word;
+class JaMap extends HashMap<Character, JaMap> {
+
+    @Getter @Setter private boolean isLeaf;
+    @Getter @Setter private String term;
+
+    protected void addTerm(String term, boolean prebuiltWords) {
+
+        JaMap current = this;
+        int lastLetterIndex = term.length() - 1;
+
+        for (int i = 0; i < term.length(); i++) {
+
+            current.putIfAbsent(term.charAt(i), new JaMap());
+            current = current.get(term.charAt(i));
+
+            if (!current.isLeaf() && lastLetterIndex == i) {
+                current.setLeaf(true);
+                if (prebuiltWords) {
+                    current.setTerm(term);
+                }
+            }
+        }
+    }
 }
 
 @Data
 @AllArgsConstructor
 class JaSolution {
     private JaMap node;
-    private String solution;
+    private String term;
 }
