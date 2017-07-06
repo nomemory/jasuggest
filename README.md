@@ -23,3 +23,6 @@ List<String> result = jaSuggest.findSuggestions("use");
 
 // [useful, useless, user]
 ```        
+
+The above example creates internally creates a Trie based on the supplied `words`. In memory the Trie looks like:
+
