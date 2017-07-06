@@ -105,12 +105,18 @@ public class JaSuggest {
 
     private void addTerms(@NonNull String... terms) {
         for(String term : terms) {
+            if (term == null) {
+                throw new NullPointerException("Null term detected. Please check if the array String... doesn't contain null values.");
+            }
             this.nodes.addTerm(term, prebuiltWords);
         }
     }
 
     private void addTerms(Iterable<String> terms) {
         for(String term : terms) {
+            if (term == null) {
+                throw new NullPointerException("Null term detected. Please check if the Iterable<String> doesn't contain null values.");
+            }
             this.nodes.addTerm(this.ignoreCase ? term.toLowerCase() : term, prebuiltWords);
         }
     }
@@ -293,6 +299,13 @@ public class JaSuggest {
             return this;
         }
 
+        /**
+         * If this option is activated the words are stored on the leafs of the Trie.
+         * This mean that memory consumption will increase accordingly, but the results will be retrieved
+         * in a way that can increase performance.
+         *
+         * @return
+         */
         public JaSuggestBuilder prebuiltWords() {
             this.prebuiltWords = true;
             return this;
