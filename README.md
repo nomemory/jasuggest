@@ -27,3 +27,5 @@ List<String> result = jaSuggest.findSuggestions("use");
 The above example creates internally creates a Trie based on the supplied `words`. In memory the Trie looks like:
 
 ![Image of the trie](https://github.com/nomemory/jasuggest/blob/master/media/Diagram.png)
+
+**Note:** Each blue node has an additional property that marks the existence of an word. 
