@@ -22,15 +22,12 @@ public class Example01 {
 
         JaSuggest jaSuggest = JaSuggest.builder()
                                        .ignoreCase()
+                                       .prebuiltWords()
                                        .withCache(jaCacheConfig)
                                        .buildFrom(words);
 
         List<String> result = jaSuggest.findSuggestions("use");
 
         System.out.println(result);
-    }
-
-    public static void main(String[] args) {
-        example01();
     }
 }

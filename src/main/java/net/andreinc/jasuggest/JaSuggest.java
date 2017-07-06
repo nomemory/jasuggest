@@ -69,7 +69,7 @@ public class JaSuggest {
 
     /**
      * Returns the current size of the map from memory.
-     * If the Map doesn't exist
+     * If the cache doesn't exist it returns -1
      *
      * @return
      */
@@ -214,7 +214,7 @@ public class JaSuggest {
         return list;
     }
 
-    private List<String> findSuggestionsInternalWithJaSolution(@NonNull String prefix, int maxResults, List<String> list) {
+    private void findSuggestionsInternalWithJaSolution(@NonNull String prefix, int maxResults, List<String> list) {
         JaMap local = getLocationByPrefix(prefix);
         Iterator<Character> it;
         Character c;
@@ -237,11 +237,9 @@ public class JaSuggest {
                 stack.push(new JaSolution(current.getNode().get(c), current.getTerm() + c));
             }
         }
-
-        return list;
     }
 
-    private List<String> findSuggestionsWithPrebuiltWords(@NonNull String prefix, int maxResults, List<String> list) {
+    private void findSuggestionsWithPrebuiltWords(@NonNull String prefix, int maxResults, List<String> list) {
         Iterator<JaMap> it;
 
         Stack<JaMap> stack = new Stack<>();
@@ -261,8 +259,6 @@ public class JaSuggest {
                 stack.push(it.next());
             }
         }
-
-        return list;
     }
 
     private JaMap getLocationByPrefix(@NonNull String prefix) {
