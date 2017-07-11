@@ -2,6 +2,23 @@
 
 A simple autosuggest library based on a [Trie](https://en.wikipedia.org/wiki/Trie) implementation. 
 
+Available in [jcenter()](https://bintray.com/nomemory/maven/jasuggest).
+
+**Maven**
+```
+<dependency>
+  <groupId>net.andreinc.jasuggest</groupId>
+  <artifactId>jasuggest</artifactId>
+  <version>0.0.1</version>
+  <type>pom</type>
+</dependency>
+```
+
+**Gradle**
+```
+compile 'net.andreinc.jasuggest:jasuggest:0.0.1'
+```
+
 ## Simple Example
 
 ```java
