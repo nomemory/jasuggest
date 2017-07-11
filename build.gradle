@@ -12,12 +12,11 @@ plugins {
     id "com.jfrog.bintray" version "1.7.3"
 }
 
-group 'net.andreinc.jasuggest'
-version '1.0-SNAPSHOT'
-
 apply plugin: 'java'
+apply plugin: 'idea'
 
-sourceCompatibility = 1.8
+group 'net.andreinc'
+version '0.0.1'
 
 repositories {
     jcenter()
@@ -31,3 +30,7 @@ dependencies {
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
 }
+
+apply from: 'install.gradle'
+apply from: 'bintray.gradle'
+

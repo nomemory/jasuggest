@@ -1,0 +1,39 @@
+apply plugin: 'maven'
+
+group = 'net.andreinc.jasuggest'
+
+install {
+    repositories.mavenInstaller {
+        pom {
+            project {
+                packaging 'jar'
+                groupId 'net.andreinc.jasuggest'
+                artifactId 'jasuggest'
+
+                name 'jasuggest' // YOUR LIBRARY NAME
+                description 'A simple autosuggest library based on a Java Trie implementation.'
+                url 'https://github.com/nomemory/jasuggest.git' // YOUR SITE
+
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id 'nomemory' //YOUR ID
+                        name 'Andrei N. Ciobanu' //YOUR NAME
+                        email 'n@n.com' //YOUR EMAIL
+                    }
+                }
+                scm {
+                    connection 'https://github.com/nomemory/jasuggest' // YOUR GIT REPO
+                    developerConnection 'https://github.com/nomemory/jasuggest' // YOUR GIT REPO
+                    url 'https://github.com/nomemory/jasuggest' // YOUR SITE
+
+                }
+            }
+        }
+    }
+}
