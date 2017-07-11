@@ -25,20 +25,6 @@ import java.util.*;
 import static java.util.Collections.sort;
 import static lombok.AccessLevel.PRIVATE;
 
-/**
- * Example:
- *
- * <pre>
- *     {@code
- *      JaSuggest js = JaSuggest.from("ABC", "AB", "ACD", "ABCDE", "XX");
- *      List<String> results = js.findSuggestionsInternal("AB");
- *      System.out.println(results);
- *
- *      // OUTPUT: [ABC, ABCDE]
- *     }
- * </pre>
- *
- */
 public class JaSuggest {
 
     private boolean ignoreCase = false;
