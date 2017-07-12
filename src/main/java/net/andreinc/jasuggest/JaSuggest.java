@@ -70,9 +70,8 @@ public class JaSuggest {
         final Map<String, List<String>> result = new HashMap<>();
 
         if (hasCache()) {
-            /** This works because string are immutable */
             for(Map.Entry<String, List<String>> entry : cache.entrySet()) {
-                result.put(new String(entry.getKey()), new ArrayList<>(entry.getValue()));
+                result.put(entry.getKey(), new ArrayList<>(entry.getValue()));
             }
         }
 
